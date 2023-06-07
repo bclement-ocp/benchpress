@@ -21,10 +21,12 @@ module Run = struct
     let open Cmdliner in
     let aux j cpus pp_results dyn paths dir_files proof_dir (log_lvl, defs) task
         timeout memory meta provers csv summary no_color output save wal_mode
-        desktop_notification no_failure update =
-      Misc.setup_logs log_lvl;
+        desktop_notification no_failure update ramdisk =
       catch_err @@ fun () ->
       if no_color then CCFormat.set_color_default false;
+      (match ramdisk with
+      | Some ramdisk -> Misc.set_ramdisk ramdisk
+      | None -> ());
       let dyn =
         if dyn then
           Some true
@@ -161,13 +163,20 @@ module Run = struct
             ~doc:
               "if the output file already exists, overwrite it with the new \
                one.")
+    and ramdisk =
+      let doc =
+        "Path to the directory to use as temporary storage for prover input \
+         and output."
+      in
+      Arg.(value & opt (some string) None & info [ "ramdisk" ] ~doc)
     in
+
     Cmd.v (Cmd.info ~doc "run")
       Term.(
         const aux $ j $ cpus $ pp_results $ dyn $ paths $ dir_files $ proof_dir
         $ defs $ task $ timeout $ memory $ meta $ provers $ csv $ summary
         $ no_color $ output $ save $ wal_mode $ desktop_notification
-        $ no_failure $ update)
+        $ no_failure $ update $ ramdisk)
 end
 
 module Slurm = struct
