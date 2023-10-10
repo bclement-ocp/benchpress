@@ -1170,27 +1170,39 @@ let handle_compare2 self : unit =
     | _ -> None, None
   in
   let entries, _more = Bin_utils.list_entries self.data_dir in
-  let mk_entry ?selected _idx (file_path, _size) : Html.elt =
+  let mk_entry ?selected _idx (file_path, _size) : _ * Html.elt =
     let open Html in
     let file_basename = Filename.basename file_path in
     let meta = get_meta self file_path in
-    optgroup
-      [ A.label (Uuidm.to_string meta.uuid) ]
-      (CCList.map
-         (fun prover ->
-           let attrs =
-             A.value (file_basename ^ "/" ^ prover)
-             ::
-             (if selected = Some (file_basename, prover) then
-               [ A.selected "selected" ]
-             else
-               [])
-           in
-           option attrs [ txt prover ])
-         meta.provers)
+    let label =
+      match meta.timestamp with
+      | Some ts ->
+        Filename.chop_extension file_basename ^ "@" ^ Misc.human_datetime ts
+      | None ->
+        Filename.chop_extension file_basename ^ ":" ^ Uuidm.to_string meta.uuid
+    in
+    ( meta.timestamp,
+      optgroup
+        [ A.label label ]
+        (CCList.map
+           (fun prover ->
+             let attrs =
+               A.value (file_basename ^ "/" ^ prover)
+               ::
+               (if selected = Some (file_basename, prover) then
+                 [ A.selected "selected" ]
+               else
+                 [])
+             in
+             option attrs [ txt prover ])
+           meta.provers) )
   in
   let options1 = CCList.mapi (mk_entry ?selected:prover1) entries in
   let options2 = CCList.mapi (mk_entry ?selected:prover2) entries in
+  let options1 = List.sort (fun (x, _) (y, _) -> Stdlib.compare y x) options1 in
+  let options2 = List.sort (fun (x, _) (y, _) -> Stdlib.compare y x) options2 in
+  let options1 = CCList.map snd options1 in
+  let options2 = CCList.map snd options2 in
   let status_opt_to_string = function
     | Some `Sat -> "sat"
     | Some `Unsat -> "unsat"
